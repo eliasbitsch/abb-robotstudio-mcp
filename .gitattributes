@@ -1,0 +1,4 @@
+# Keep every text file LF in the repository, whatever the editor on Windows writes.
+* text=auto eol=lf
+*.rspak binary
+*.dll binary

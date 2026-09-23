@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Distribution Package spec for the RobotStudioBridge RobotStudio add-in.
+     Build with the RobotStudio SDK's RspakTool (see build-rspak.ps1):
+
+       RspakTool.exe -i addin\RobotStudioBridge.rspakspec -p version=<X.Y.Z> -o <outdir>
+
+     The resulting AbbRobotStudioMcp.RobotStudioBridge-<version>.rspak installs natively from
+     RobotStudio's Add-Ins tab -> "Install Package" (per-user, no admin needed).
+     Schema: DistributionPackageSpec.xsd in the RobotStudio SDK root. -->
+<DistributionPackageSpec xmlns="urn:abb-robotics-robotstudio-distributionpackagespec">
+
+  <!-- Package identity: <orgname>.<packagename>-<version> per the SDK's
+       "Structure of a Distribution Package" doc. -->
+  <RootDir>AbbRobotStudioMcp.RobotStudioBridge-$(version)</RootDir>
+
+  <!-- Copied verbatim into the package's manifest.xml. -->
+  <DistributionPackage>
+    <Title>RobotStudioBridge</Title>
+    <DisplayVersion>$(version)</DisplayVersion>
+    <Creator>abb-robotstudio-mcp</Creator>
+    <Description>HTTP bridge exposing RobotStudio SDK operations to the abb-robotstudio-mcp server on http://localhost:58080</Description>
+    <DetailedDescription>RobotStudio add-in half of abb-robotstudio-mcp. On RobotStudio startup it opens an HTTP server on localhost:58080 that the MCP server's rs_* tools call for live station, RAPID, controller and virtual-panel operations. Loopback only; no remote access.</DetailedDescription>
+    <Information>https://github.com/eliasbitsch/abb-robotstudio-mcp</Information>
+    <Date />
+    <!-- One version of the add-in at a time (SDK recommendation for RobotStudio add-ins). -->
+    <SideBySide>false</SideBySide>
+    <Tags>
+      <Tag>RobotStudio-AddIn</Tag>
+      <Tag>MCP</Tag>
+    </Tags>
+  </DistributionPackage>
+
+  <!-- src paths are relative to this .rspakspec file. -->
+  <Files>
+    <File src="bin\RobotStudioBridge.dll" target="RobotStudio\Add-In" />
+    <File src="RobotStudioBridge.rsaddin" target="RobotStudio\Add-In" />
+  </Files>
+
+</DistributionPackageSpec>

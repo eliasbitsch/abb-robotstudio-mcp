@@ -1,22 +1,27 @@
 {
   "name": "abb-robotstudio-mcp",
-  "version": "1.0.0",
-  "description": "MCP server for ABB RobotStudio via Robot Web Services (RWS)",
+  "version": "3.0.0",
+  "description": "MCP server for ABB robots: RobotStudio and the PC SDK through a RobotStudio add-in (rs_* tools), and Robot Web Services 1.0/2.0 on IRC5 and OmniCore controllers (rws_* tools)",
   "type": "module",
   "main": "dist/index.js",
   "bin": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsc && node dist/index.js"
+    "test": "tsc -p tsconfig.test.json && node --test \"build-test/test/*.test.js\"",
+    "test:live": "npm run build && node test/live/run.mjs"
   },
-  "keywords": ["mcp", "abb", "robotstudio", "rws", "egm", "rapid"],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["mcp", "abb", "robotstudio", "rws", "robot-web-services", "pc-sdk", "rapid", "irc5", "omnicore"],
+  "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.28.0",
-    "@types/node": "^25.5.0",
-    "typescript": "^6.0.2",
     "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^6.0.2"
   }
 }

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RobotStudioAddIn xmlns="urn:abb-robotics-robotstudio-addin"
+                  autoLoad="true">
+
+  <ApplicationId>AbbRobotStudioMcp.RobotStudioBridge</ApplicationId>
+
+  <DisplayName>RobotStudioBridge</DisplayName>
+  <DisplayVersion>3.0.0</DisplayVersion>
+  <Description>HTTP bridge exposing RobotStudio SDK operations to the abb-robotstudio-mcp server on http://localhost:58080</Description>
+
+  <!-- General = a non-ABB, non-PowerPac add-in (the bundled ABB add-ins use Internal). -->
+  <AddInType>General</AddInType>
+
+  <Assembly>
+    <FileName>RobotStudioBridge.dll</FileName>
+    <Entrypoint>RobotStudioBridge.RobotStudioBridgeAddIn.AddinMain</Entrypoint>
+  </Assembly>
+
+  <!-- None = no sub-system dependency, so it loads (and the HTTP listener comes up)
+       as soon as RobotStudio starts, before any station/controller is opened. -->
+  <Dependencies>None</Dependencies>
+  <Platform>Any</Platform>
+
+</RobotStudioAddIn>
