@@ -5,7 +5,7 @@
   <ApplicationId>AbbRobotStudioMcp.RobotStudioBridge</ApplicationId>
 
   <DisplayName>RobotStudioBridge</DisplayName>
-  <DisplayVersion>3.0.0</DisplayVersion>
+  <DisplayVersion>3.0.1</DisplayVersion>
   <Description>HTTP bridge exposing RobotStudio SDK operations to the abb-robotstudio-mcp server on http://localhost:58080</Description>
 
   <!-- General = a non-ABB, non-PowerPac add-in (the bundled ABB add-ins use Internal). -->

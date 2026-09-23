@@ -524,8 +524,9 @@ export function registerRwsTools(server: McpServer, rws: RwsClient): void {
 
   defineTool(server, "rws_event_log", {
     title: "Event log (RWS)",
-    description: "Event-log messages of one domain, newest first, with title and description. domain: 0 common (all), 1 operational, " +
-      "2 system, 3 hardware, 4 program, 5 motion, 7 I/O & communication, 8 user, 9 internal, 10 process, 11 configuration, 12 RAPID, 17 safety.",
+    description: "Event-log messages of one domain, newest first, with the ABB event code, title and description. domain: 0 common (every " +
+      "domain except internal), 1 operational, 2 system, 3 hardware, 4 program, 5 motion, 7 I/O & communication, 8 user, 9 safety, " +
+      "10 internal, 11 process, 12 configuration, 13 paint, 15 RAPID, 17 connected services.",
     input: {
       domain: z.number().int().min(0).max(99).optional().describe("Default 0."),
       count: z.number().int().min(1).max(1000).optional().describe("Default 20."),

@@ -102,10 +102,14 @@ export interface RwsErrorBody {
 }
 
 // RWS error bodies: <span class="code">-1073414146</span><span class="msg">...</span>. The msg
-// carries the controller's own source location and repeats the codes, in two measured shapes:
+// carries the controller's own source location and repeats the codes, in these measured shapes:
 //   "C:\BUILDAGENTS\...\rws_resource_rapid_symbol_data.cpp[286] Symbol not found code:-1073414146 icode:-1"
+//   "C:\BUILDAGENTS\...\rws_resource_panel.cpp[929] code:-1073414146 icode:-1073445881"
 //   "ERROR: C:\BUILDAGENTS\...\rws_component_rapid.cpp[261]: org_code: -4503 new_code: 0xc0049007;"
-// Keep the words, and the inner controller code (org_code) when there is one.
+// Keep the words, and the inner controller code when there is one: org_code, or an icode other
+// than -1 (which means none). On RobotWare 6 the outer code is often RWS's generic -1073414146
+// and only the icode says why: a motors-on refused in a guard stop or e-stop is
+// "code:-1073414146 icode:-1073445881" (SYS_CTRL_E_REJECT).
 export function parseErrorBody(html: string): RwsErrorBody {
   const out: RwsErrorBody = {};
   const code = firstSpan(html, "code");
@@ -115,7 +119,9 @@ export function parseErrorBody(html: string): RwsErrorBody {
     msg = msg.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length > 0) ?? msg;
     msg = msg.replace(/^ERROR:\s*/i, "").replace(/^\S*\.(?:cpp|c|h|hpp)\[\d+\]:?\s*/i, "");
     const org = msg.match(/\borg_code:\s*(-?\d+)/i);
+    const inner = msg.match(/\bicode:\s*(-?\d+)/i);
     if (org) out.controllerCode = org[1];
+    else if (inner && inner[1] !== "-1") out.controllerCode = inner[1];
     msg = msg
       .replace(/\borg_code:\s*-?\d+\s*(?:new_code:\s*0x[0-9a-f]+;?)?/i, "")
       .replace(/\s*\bcode:\s*-?\d+(?:\s+icode:\s*-?\d+)?\s*$/i, "")
@@ -125,12 +131,14 @@ export function parseErrorBody(html: string): RwsErrorBody {
   return out;
 }
 
+// -1073414146 is deliberately absent: it is RobotWare 6 RWS's GENERIC outer code, measured on a
+// 403 motors-on refusal, a 400 "Symbol not found" and a 404 missing file alike, so it says
+// nothing by itself. The HTTP status, the message and the inner code do.
 const CODE_HINTS: Record<string, string> = {
   "-4503": "the RAPID program server was busy: a previous start, stop or load had not finished",
   "-1073445881": "the controller refused the request in its current state (SYS_CTRL_E_REJECT): check operating mode, motors state and whether RAPID is running",
   "-1073445859": "this session lacks the required mastership (another client, e.g. the FlexPendant or RobotStudio, may hold it)",
   "-1073445862": "the FlexPendant holds mastership (the controller is probably in manual mode)",
-  "-1073414146": "resource not found",
   "-1073445879": "resource not found (wrong path or name)",
 };
 

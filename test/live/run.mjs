@@ -306,6 +306,31 @@ sections.eventlog = async ({ rs, rws6, rws7 }) => {
     check(`${c}: since_seq returns only newer messages`, since.json?.messages?.length === 2, since.text.slice(0, 300));
     await err(rs, "rs_event_log", { controller: c, category: 99 }, /not found/, `${c}: unknown category`);
   }
+  // Both families read the same log and share sequence numbers, so pair them: the PC SDK's own
+  // Number is only the number within a category (27 for a 50027), which rs_event_log once
+  // returned as `code`. Descriptions are compared without whitespace because RWS drops their line
+  // breaks: "...was found.\nThe module..." from the PC SDK is "...was found.The module..." in the
+  // raw RWS response (measured on RobotWare 7.21).
+  const plain = (t) => (t ?? "").replace(/\s+/g, "");
+  for (const [c, s] of [[RW6, rws6], [RW7, rws7]]) {
+    const a = (await ok(rs, "rs_event_log", { controller: c, count: 200 }, `${c}: rs_event_log, 200 messages`)).json?.messages ?? [];
+    const b = (await ok(s, "rws_event_log", { count: 200 }, `${c}: rws_event_log, 200 messages`)).json ?? [];
+    const bySeq = new Map(b.map((m) => [m.seq, m]));
+    const pairs = a.filter((m) => bySeq.has(m.seq)).map((m) => [m, bySeq.get(m.seq)]);
+    check(`${c}: the two families share the log (>= 150 of 200 sequence numbers)`, pairs.length >= 150, `${pairs.length} paired`);
+    const codes = pairs.filter(([x, y]) => x.code !== y.code);
+    check(`${c}: every paired message has the same ABB event code in both families`, pairs.length > 0 && codes.length === 0,
+      JSON.stringify(codes.slice(0, 5).map(([x, y]) => `seq ${x.seq} '${x.title}': rs ${x.code}, rws ${y.code}`)));
+    check(`${c}: code = categoryId * 10000 + number, with the message's own category (not 0)`,
+      a.length > 0 && a.every((m) => m.categoryId > 0 && m.code === m.categoryId * 10000 + m.number), JSON.stringify(a.slice(0, 2)));
+    const texts = pairs.filter(([x, y]) => plain(x.description) !== plain(y.description));
+    console.log(`        (${c}: ${pairs.filter(([x]) => /\n/.test(x.description ?? "")).length} of the paired descriptions span several lines)`);
+    check(`${c}: descriptions are plain text, the same as RWS gives`, pairs.length > 0 && texts.length === 0 && a.every((m) => !/<\/?Body\b/.test(m.description ?? "")),
+      JSON.stringify(texts.slice(0, 3).map(([x, y]) => ({ seq: x.seq, rs: x.description, rws: y.description }))));
+    const safety = (await ok(rs, "rs_event_log", { controller: c, category: 9, count: 20 }, `${c}: category 9`)).json;
+    check(`${c}: category 9 is safety, and its messages carry 9xxxx codes`, /safety/i.test(safety?.categoryName ?? "") && safety?.messages?.length > 0 &&
+      safety.messages.every((m) => m.categoryId === 9 && Math.floor(m.code / 10000) === 9), JSON.stringify(safety?.messages?.slice(0, 2) ?? safety));
+  }
   for (const [s, gen] of [[rws6, "RWS 1.0"], [rws7, "RWS 2.0"]]) {
     const e = await ok(s, "rws_event_log", { count: 60 });
     const seqs = (e.json ?? []).map((m) => m.seq);
@@ -399,6 +424,12 @@ sections.panel = async ({ rs, rws6, rws7 }) => {
     const forced = await ok(rs, "rs_clear_guardstop", { controller: c, force: true, motors_on: false }, "force from MotorsOn, no motors-on");
     check("forced pulse ends motors off", ["MotorsOff", "EmergencyStopReset"].includes(forced.json?.controllerState), forced.text);
     const p2 = await ok(rs, "rs_set_estop", { controller: c, state: "press" });
+    // Still pressed (RWS opens no PC SDK connection), so a motors-on over RWS is refused. RobotWare 6
+    // answers with RWS's generic outer code and the reason only as the inner code (icode), RobotWare 7
+    // with the reason as the outer code. This sits after the 90202 check on purpose: the refused
+    // attempt can itself log "Emergency Stop open" (measured: 90202 on RobotWare 6, 90863 on 7).
+    const refused = await err(c === RW6 ? rws6 : rws7, "rws_set_motors", { state: "on" }, /SYS_CTRL_E_REJECT/, "RWS motors-on during the e-stop: refused, naming SYS_CTRL_E_REJECT");
+    check("and not misreported as 'not found'", !/not found/i.test(refused.text), refused.text);
     const rel = await ok(rs, "rs_set_estop", { controller: c, state: "release" });
     check("release leaves e-stop state", p2.json?.controllerState === "EmergencyStop" && !["EmergencyStop", "GuardStop"].includes(rel.json?.controllerState), rel.text);
     await ensureMotorsOff(rs, c);

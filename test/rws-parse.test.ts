@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  baseHref, buildDigestHeader, compareModuleText, decodeEntities, fileServicePath, firstNonAscii, firstSpan,
+  baseHref, buildDigestHeader, codeHint, compareModuleText, decodeEntities, fileServicePath, firstNonAscii, firstSpan,
   hasEndModule, looksLikeText, nextHref, parseDigestChallenge, parseErrorBody, parseItems, parseModuleHeader, resolveNext,
 } from "../src/rws-parse.js";
 
@@ -83,6 +83,39 @@ test("error bodies: code and the human part of the message", () => {
   const busy = '<div class="status"><span class="code">-1073414146</span><span class="msg">ERROR: C:\\BUILDAGENTS\\SEABB\\_work\\71\\s\\RW\\' +
     'Areas\\RobApi2\\Components\\rws_rapid\\rws_component_rapid.cpp[261]: org_code: -4503 new_code: 0xc0049007;</span></div>';
   assert.deepEqual(parseErrorBody(busy), { code: "-1073414146", controllerCode: "-4503" });
+});
+
+// Error bodies captured 2026-09-23 from the RobotWare 6.16 and 7.21 virtual controllers.
+const errorBody = (code: string, msg: string) =>
+  `<html><head><base href="http://localhost:80/"/></head><body><div class="status"><span class="code">${code}</span>` +
+  `<span class="msg">${msg}</span></div></body></html>`;
+// A motors-on refused while the controller is in emergency stop (the same body as in a latched
+// guard stop): RWS's generic outer code, the controller's reason only in the icode.
+const RW6_MOTORS_ON_REFUSED = errorBody("-1073414146", "C:\\BUILDAGENTS\\SEABB-IS-13906.1\\_work\\71\\s\\RW\\Areas\\RobApi2\\Components\\" +
+  "rws_panel\\rws_resource_panel.cpp[929] code:-1073414146 icode:-1073445881");
+const RW7_MOTORS_ON_REFUSED = errorBody("-1073445881", "rws_resource_panel.cpp[1448] code:-1073445881 icode:-1");
+const RW6_MISSING_FILE = errorBody("-1073414146", "C:\\BUILDAGENTS\\SEABB-IS-13906.1\\_work\\71\\s\\RW\\Areas\\RobApi2\\Components\\" +
+  "rapi_fileserv\\rapi_file_service.cpp[221] Resource does not exist -1073414146 -1");
+const RW7_MISSING_MECHUNIT = errorBody("-1073445866",
+  "rws_resource_motionsystem.cpp[7642] ERROR: da_motionsystem.cpp[285]: code: 0xc004a804 Mech unit ROB_9 does not exist; code:-1073445866 icode:-1073436668");
+const UNRESOLVED_URL = errorBody("-1073445866", "rws_resource_rapid_module.cpp[1864] Unresolved url code:-1073445866 icode:-507");
+
+test("error bodies: the inner code (icode) is kept, and -1 means there is none", () => {
+  assert.deepEqual(parseErrorBody(RW6_MOTORS_ON_REFUSED), { code: "-1073414146", controllerCode: "-1073445881" });
+  assert.deepEqual(parseErrorBody(RW7_MOTORS_ON_REFUSED), { code: "-1073445881" });
+  assert.deepEqual(parseErrorBody(RW7_MISSING_MECHUNIT), {
+    code: "-1073445866", controllerCode: "-1073436668", msg: "ERROR: da_motionsystem.cpp[285]: code: 0xc004a804 Mech unit ROB_9 does not exist;",
+  });
+  assert.deepEqual(parseErrorBody(UNRESOLVED_URL), { code: "-1073445866", controllerCode: "-507", msg: "Unresolved url" });
+  // The file service's unlabelled "<code> <icode>" tail stays in the words; its icode is -1 anyway.
+  assert.deepEqual(parseErrorBody(RW6_MISSING_FILE), { code: "-1073414146", msg: "Resource does not exist -1073414146 -1" });
+});
+
+test("hints: RWS's generic outer code -1073414146 claims nothing; SYS_CTRL_E_REJECT is named", () => {
+  assert.equal(codeHint("-1073414146"), undefined);
+  assert.match(codeHint("-1073445881") ?? "", /SYS_CTRL_E_REJECT/);
+  assert.match(codeHint("-4503") ?? "", /busy/);
+  assert.equal(codeHint(undefined), undefined);
 });
 
 test("firstSpan and entities", () => {

@@ -128,6 +128,23 @@ class MockController {
       res.end(`<html><head><base href="http://127.0.0.1/rw/elog/"/></head><body>${links}<ul>` + seqs.map(elogEntry).join("") + "</ul></body></html>");
       return;
     }
+    // Refusals as the RobotWare 6.16 and 7.21 virtual controllers answer them (measured).
+    const refuse = (status: number, code: string, msg: string) => {
+      res.statusCode = status;
+      res.end(`<html><head><base href="http://127.0.0.1/"/></head><body><div class="status"><span class="code">${code}</span>` +
+        `<span class="msg">${msg}</span></div></body></html>`);
+    };
+    if (req.method === "POST" && url === "/rw/panel/ctrlstate?action=setctrlstate") {
+      refuse(403, "-1073414146", "C:\\BUILDAGENTS\\SEABB-IS-13906.1\\_work\\71\\s\\RW\\Areas\\RobApi2\\Components\\rws_panel\\" +
+        "rws_resource_panel.cpp[929] code:-1073414146 icode:-1073445881");
+      return;
+    }
+    if (req.method === "POST" && url === "/rw/panel/ctrl-state") { refuse(403, "-1073445881", "rws_resource_panel.cpp[1448] code:-1073445881 icode:-1"); return; }
+    if (url.startsWith("/rw/rapid/symbol/data/")) {
+      refuse(400, "-1073414146", "C:\\BUILDAGENTS\\SEABB-IS-13906.1\\_work\\71\\s\\RW\\Areas\\RobApi2\\Components\\rws_rapid\\" +
+        "rws_resource_rapid_symbol_data.cpp[286] Symbol not found code:-1073414146 icode:-1");
+      return;
+    }
     if (url === "/rw/loop") { res.end(html('<a href="loop" rel="next"></a><ul><li class="it" title="x"></li></ul>')); return; }
     if (url === "/rw/echo") { res.end(html(`<span class="raw">${body.replace(/&/g, "&amp;")}</span>`)); return; }
     res.end(html(`<span class="ok">${url}</span>`));
@@ -242,6 +259,35 @@ test("RWS 2.1: newest first, paged by sequence number, ignoring the broken next 
     const all = await c.elogNewestFirst(0, 100);
     assert.deepEqual(all.map((i) => i.title.split("/").pop()), ["6", "5", "4", "3", "2", "1"]);
     assert.ok(!m.requests.some((r) => r.url.includes("start=4294967294")), "the broken next link must not be followed");
+  } finally { await m.stop(); }
+});
+
+test("RWS 1.0: a refused motors-on names the inner code and SYS_CTRL_E_REJECT, never 'not found'", async () => {
+  const m = new MockController();
+  await m.start();
+  try {
+    const c = new RwsClient(config(m.url));
+    await assert.rejects(() => c.post("/rw/panel/ctrlstate?action=setctrlstate", { "ctrl-state": "motoron" }), (e: Error) => {
+      assert.match(e.message, /HTTP 403 \(-1073414146: controller code -1073445881\)\. Hint: .*SYS_CTRL_E_REJECT/);
+      assert.doesNotMatch(e.message, /not found/);
+      return true;
+    });
+    // "Symbol not found" rides on the same generic outer code: its own words say what happened,
+    // and no hint is made up from the outer code.
+    await assert.rejects(() => c.get("/rw/rapid/symbol/data/RAPID/T_ROB2/MainModule/nNope"), (e: Error) => {
+      assert.match(e.message, /HTTP 400 \(-1073414146: Symbol not found\)$/);
+      return true;
+    });
+  } finally { await m.stop(); }
+});
+
+test("RWS 2.0: the same refusal already carries SYS_CTRL_E_REJECT as its outer code, and still says so", async () => {
+  const m = new MockController({ scheme: "basic", rwversion: "7.21.0" });
+  await m.start();
+  try {
+    const c = new RwsClient(config(m.url));
+    await assert.rejects(() => c.post("/rw/panel/ctrl-state", { "ctrl-state": "motoron" }),
+      /HTTP 403 \(-1073445881\)\. Hint: the controller refused the request in its current state \(SYS_CTRL_E_REJECT\)/);
   } finally { await m.stop(); }
 });
 

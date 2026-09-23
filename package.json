@@ -1,6 +1,6 @@
 {
   "name": "abb-robotstudio-mcp",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "MCP server for ABB robots: RobotStudio and the PC SDK through a RobotStudio add-in (rs_* tools), and Robot Web Services 1.0/2.0 on IRC5 and OmniCore controllers (rws_* tools)",
   "type": "module",
   "main": "dist/index.js",

@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Xml.Linq;
 using ABB.Robotics.Controllers;
 using ABB.Robotics.Controllers.EventLogDomain;
 using ABB.Robotics.Controllers.IOSystemDomain;
@@ -293,7 +294,7 @@ namespace RobotStudioBridge
                 {
                     var m = ms[i];
                     if (m.SequenceNumber <= mark) break;
-                    result.Add(new { code = m.Number, type = m.Type.ToString(), title = m.Title, description = m.Body });
+                    result.Add(EventJson(m));
                 }
             }
             catch { }
@@ -1087,18 +1088,57 @@ namespace RobotStudioBridge
                 {
                     var m = ms[i];
                     if (sinceSeq != null && m.SequenceNumber <= sinceSeq.Value) break;
-                    list.Add(new
-                    {
-                        seq = m.SequenceNumber,
-                        code = m.Number,
-                        type = m.Type.ToString(),
-                        timestamp = Iso(m.Timestamp),
-                        title = m.Title,
-                        description = m.Body,
-                    });
+                    list.Add(EventJson(m));
                 }
                 return new { controller = t.Name, category = cat.Id, categoryName = cat.Name, total = ms.Count, messages = list };
             });
+        }
+
+        // One event-log message as the tools return it. `code` is the ABB event code the
+        // controller's documentation and RWS use (50027, 40160...): the PC SDK's Number is only
+        // the number WITHIN the message's category (27 for a 50027), and CategoryId is the
+        // message's own category even when it is read through category 0 (common). Measured on
+        // the RobotWare 6.16 and 7.21 VCs: CategoryId * 10000 + Number equalled RWS's code for the
+        // same sequence number on 1000 of 1000 messages each, in categories 1, 2, 4, 5, 7, 8 and 9.
+        // 9 (safety) has no CategoryType member, hence the integer id.
+        // The text arrives as XML on both generations, <Body><Title/><Description/><Consequences/>
+        // <Causes/><Actions/></Body>, and is returned as plain-text fields; anything else is
+        // returned verbatim as the description.
+        static object EventJson(EventLogMessage m)
+        {
+            string description = m.Body, consequences = null, causes = null, actions = null;
+            try
+            {
+                var body = XElement.Parse(m.Body ?? "");
+                if (body.Name.LocalName == "Body")
+                {
+                    description = BodyPart(body, "Description");
+                    consequences = BodyPart(body, "Consequences");
+                    causes = BodyPart(body, "Causes");
+                    actions = BodyPart(body, "Actions");
+                }
+            }
+            catch (System.Xml.XmlException) { } // not XML: keep the text as it is
+            return new
+            {
+                seq = m.SequenceNumber,
+                code = m.CategoryId * 10000 + m.Number,
+                categoryId = m.CategoryId,
+                number = m.Number,
+                type = m.Type.ToString(),
+                timestamp = Iso(m.Timestamp),
+                title = m.Title,
+                description,
+                consequences,
+                causes,
+                actions,
+            };
+        }
+
+        static string BodyPart(XElement body, string name)
+        {
+            var text = body.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value.Trim();
+            return string.IsNullOrEmpty(text) ? null : text;
         }
 
         static string Iso(DateTime d) => d.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);

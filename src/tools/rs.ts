@@ -104,8 +104,10 @@ export function registerRsTools(server: McpServer, bridge: BridgeClient): void {
 
   defineTool(server, "rs_event_log", {
     title: "Controller event log",
-    description: "Controller event-log messages, newest first, with title and description. category: 0 common (all), 1 operational, " +
-      "2 system, 3 hardware, 4 program, 5 motion, 7 I/O & communication, 8 user, 10 internal, 11 process, 12 configuration.",
+    description: "Controller event-log messages, newest first. Each has the ABB event code (e.g. 50027, as rws_event_log gives it), its " +
+      "categoryId and the number within that category, and the title, description, consequences, causes and actions as text. category: " +
+      "0 common (every category except internal), 1 operational, 2 system, 3 hardware, 4 program, 5 motion, 7 I/O & communication, 8 user, " +
+      "9 safety, 10 internal, 11 process, 12 configuration, 13 paint, 15 RAPID, 17 connected services.",
     input: {
       controller,
       category: z.number().int().min(0).max(100).optional().describe("Default 0 (common)."),

@@ -190,6 +190,9 @@ tools report the first one's line and column before sending anything.
 - **RWS sessions.** A controller allows 70 RWS sessions, and an OmniCore allows 5 per client IP.
   The server keeps one session, re-authenticates once for a whole burst when it expires, and
   logs out on shutdown.
+- **Event logs.** `rs_event_log` and `rws_event_log` read the same log, share sequence numbers and
+  give the same ABB event codes (`50027`, `40160`...). Category (domain) 0, common, holds every
+  category except internal (10); 9 is safety.
 - **RWS quirks the tools already handle.** Paged lists (signals, event log, directories) are
   followed to the end. OmniCore's event log is read newest-first, working around RobotWare 7.21's
   broken newest-first paging link. A stop followed straight away by a program-pointer reset or a
