@@ -1,5 +1,6 @@
 node_modules/
 dist/
+build-test/
 *.log
 .env
 .env.local
@@ -7,6 +8,7 @@ dist/
 # C# / Add-In build artifacts
 addin/bin/
 addin/obj/
+*.rspak
 *.user
 *.suo
 .vs/

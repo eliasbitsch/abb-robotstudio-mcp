@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The RobotStudio install whose assemblies the add-in compiles against. Override for
+       another version or location:  dotnet build -p:RobotStudioBin="D:\ABB\RobotStudio 2024\Bin" -->
+  <PropertyGroup>
+    <RobotStudioBin Condition="'$(RobotStudioBin)' == ''">C:\Program Files (x86)\ABB\RobotStudio 2025\Bin</RobotStudioBin>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>RobotStudioBridge</AssemblyName>
+    <RootNamespace>RobotStudioBridge</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <OutputPath>bin\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- The version has ONE source: DisplayVersion in RobotStudioBridge.rsaddin. It is read here
+       so a plain `dotnet build` stamps the same assembly version that /ping reports and
+       build-rspak.ps1 packages. -->
+  <Target Name="ReadAddinVersion" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo;PrepareForBuild">
+    <XmlPeek XmlInputPath="$(MSBuildProjectDirectory)\RobotStudioBridge.rsaddin"
+             Query="/a:RobotStudioAddIn/a:DisplayVersion/text()"
+             Namespaces="&lt;Namespace Prefix='a' Uri='urn:abb-robotics-robotstudio-addin' /&gt;">
+      <Output TaskParameter="Result" PropertyName="AddinDisplayVersion" />
+    </XmlPeek>
+    <Error Condition="'$(AddinDisplayVersion)' == ''" Text="DisplayVersion not found in RobotStudioBridge.rsaddin." />
+    <PropertyGroup>
+      <Version>$(AddinDisplayVersion)</Version>
+      <AssemblyVersion>$(AddinDisplayVersion)</AssemblyVersion>
+      <FileVersion>$(AddinDisplayVersion)</FileVersion>
+      <InformationalVersion>$(AddinDisplayVersion)</InformationalVersion>
+    </PropertyGroup>
+  </Target>
+
+  <ItemGroup>
+    <Reference Include="ABB.Robotics.RobotStudio">
+      <HintPath>$(RobotStudioBin)\ABB.Robotics.RobotStudio.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ABB.Robotics.RobotStudio.Stations">
+      <HintPath>$(RobotStudioBin)\ABB.Robotics.RobotStudio.Stations.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ABB.Robotics.RobotStudio.Environment">
+      <HintPath>$(RobotStudioBin)\ABB.Robotics.RobotStudio.Environment.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ABB.Robotics.Controllers.PC">
+      <HintPath>$(RobotStudioBin)\ABB.Robotics.Controllers.PC.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ABB.Robotics.Math">
+      <HintPath>$(RobotStudioBin)\ABB.Robotics.Math.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(RobotStudioBin)\Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- The virtual-panel code reaches RobApi's VcPanel by reflection only, so there is
+         deliberately no compile-time reference to the internal RobotStudio.Services.RobApi. -->
+  </ItemGroup>
+
+</Project>
